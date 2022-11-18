@@ -1,0 +1,24 @@
+#MMHUS config file 
+#After modifying rename to config.yaml
+
+devices: #add your devices here
+  - name: my_router
+    address: 10.10.0.1
+    port: 8999
+    user: prometheus
+    password: changeme
+  - name: my_second_router
+    address: 10.10.0.2
+    port: 8999
+    user: prometheus2
+    password: password_to_second_router
+
+mysql:
+  USERNAME: username
+  PASSWORD: password
+  HOST: 127.0.0.1
+  PORT: 5432
+  DB: database_name
+  TABLE: table_name
+  USERS: collumn_name #collumn where usernames of hotspot users are stored
+  PASSWORDS: collumn_name #collumn where passwords of hotspot users are stored
