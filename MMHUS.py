@@ -7,9 +7,10 @@ from mysql.connector import errorcode
 import logging
 
 
-class Logger:
+
+def initLogger(name):
     #loggger
-    logger = logging.getLogger('__name__')
+    logger = logging.getLogger(name)
     #handlers
     fileHandler = logging.FileHandler('logfile.log')
     fileHandler.setLevel(logging.ERROR)
@@ -18,17 +19,22 @@ class Logger:
     fileHandler.setFormatter(formatter)
     #add handlers
     logger.addHandler(fileHandler)
+    return logger
 
-def getListMysql(region):
+logger = initLogger(__name__)
+
+def getListMysql():
+    table="[table]"
     usernames = []
     passwords = []
+    
     try:
         #connection to mysql
         cnx = mysql.connector.connect( 
-            host='localhost',
-            user='root',
-            password='Autobus1+',
-            database='hugo'
+            host='[localhost]',
+            user='[user]',
+            password='[password]',
+            database='[database]'
             )
         print('Connected to Database')
          # catch errors when connection is starting
@@ -43,10 +49,15 @@ def getListMysql(region):
 
     cursor = cnx.cursor()
     
-    query = ("SELECT username, unique_id FROM users WHERE id IN (SELECT user_id FROM region_user WHERE region_id={}) AND active=1").format(region)#sql command
+    query = ("SELECT username, password FROM {}").format(table)#sql command
     cursor.execute(query)#executing sql
-    for (username, unique_id) in cursor:
+    for (username, password) in cursor:
         usernames.append(username)
-        passwords.append(unique_id)
+        passwords.append(password)
     print('Database query executed successfully')
     return usernames, passwords
+
+def connectMikrotik(ip):
+    connect = routeros_api.RouterOsApiPool(ip , username='[username]',password='[password]', plaintext_login=True) #connect to mikrotik
+    resource = connect.get_api().get_resource('/ip/hotspot/user')#users from mikrotik
+    return resource
