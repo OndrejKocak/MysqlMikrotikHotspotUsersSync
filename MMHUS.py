@@ -4,37 +4,39 @@
 import routeros_api
 import mysql.connector
 from mysql.connector import errorcode
-import logging
+
+import yaml
+
+
+class Config:
+    file_path = "config.yaml"
+    def __init__(self):
+        with open(self.file_path, "r") as f:
+            self.parser = yaml.safe_load(f)
+
+    def getDatabase(self):
+        return self.parser['mysql']
+
+    def getDevices(self):
+        return self.parser['devices']
+
+    
 
 
 
-def initLogger(name):
-    #loggger
-    logger = logging.getLogger(name)
-    #handlers
-    fileHandler = logging.FileHandler('logfile.log')
-    fileHandler.setLevel(logging.ERROR)
-    #formatters
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fileHandler.setFormatter(formatter)
-    #add handlers
-    logger.addHandler(fileHandler)
-    return logger
 
-logger = initLogger(__name__)
-
-def getListMysql():
-    table="[table]"
-    usernames = []
-    passwords = []
+def getListMysql(database):
+    table = database["table"]
+    usernames = database["users"]
+    passwords = database["passwords"]
     
     try:
         #connection to mysql
         cnx = mysql.connector.connect( 
-            host='[localhost]',
-            user='[user]',
-            password='[password]',
-            database='[database]'
+            host=database["host"],
+            user=database["username"],
+            password=database["password"],
+            database=database["dbName"]
             )
         print('Connected to Database')
          # catch errors when connection is starting
@@ -57,7 +59,18 @@ def getListMysql():
     print('Database query executed successfully')
     return usernames, passwords
 
-def connectMikrotik(ip):
-    connect = routeros_api.RouterOsApiPool(ip , username='[username]',password='[password]', plaintext_login=True) #connect to mikrotik
+def connectMikrotik(device):
+    connect = routeros_api.RouterOsApiPool(device["ip"], username=device["user"],password=device["password"],port=device["port"], plaintext_login=True) #connect to mikrotik
     resource = connect.get_api().get_resource('/ip/hotspot/user')#users from mikrotik
     return resource
+
+if __name__ == "__main__":
+    config = Config()
+    database = config.getDatabase()
+    devices = config.getDevices()
+    '''
+    print(config.getDatabase(),'\n', devices)
+
+    for device in devices:
+        print(device["ip"])
+    '''
