@@ -4,7 +4,6 @@
 import routeros_api
 import mysql.connector
 from mysql.connector import errorcode
-
 import yaml
 
 
@@ -20,16 +19,26 @@ class Config:
     def getDevices(self):
         return self.parser['devices']
 
+class User:
+    
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+    #username getter
+    def getUsername(self):
+        return self.username
+    #password getter
+    def getPassword(self):
+        return self.password
+
     
 
-
-
-
-def getListMysql(database):
+def getDataFromDatabase(database):
     table = database["table"]
     usernames = database["users"]
     passwords = database["passwords"]
-    
+
+    #try to connect
     try:
         #connection to mysql
         cnx = mysql.connector.connect( 
@@ -50,14 +59,23 @@ def getListMysql(database):
             
 
     cursor = cnx.cursor()
-    
-    query = ("SELECT username, password FROM {}").format(table)#sql command
-    cursor.execute(query)#executing sql
-    for (username, password) in cursor:
-        usernames.append(username)
-        passwords.append(password)
+
+    #sql query
+    query = ("SELECT {}, {} FROM {}").format(usernames, passwords ,table)
+
+    #executing query
+    cursor.execute(query)
     print('Database query executed successfully')
-    return usernames, passwords
+
+    #parsing data to list
+    users = []
+    for (username, password) in cursor:
+        users.append(User(username, password))
+    print('Data from database succesfully added to list')
+
+    return users
+
+    
 
 def connectMikrotik(device):
     connect = routeros_api.RouterOsApiPool(device["ip"], username=device["user"],password=device["password"],port=device["port"], plaintext_login=True) #connect to mikrotik
@@ -68,9 +86,3 @@ if __name__ == "__main__":
     config = Config()
     database = config.getDatabase()
     devices = config.getDevices()
-    '''
-    print(config.getDatabase(),'\n', devices)
-
-    for device in devices:
-        print(device["ip"])
-    '''
