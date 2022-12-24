@@ -14,13 +14,17 @@ class Config:
             self.parser = yaml.safe_load(f)
 
     def getDatabase(self):
-        return self.parser['mysql']
+        return Database(self.parser['mysql'])
 
     def getDevices(self):
-        return self.parser['devices']
+        devicesParsed = self.parser['devices']
+        listOfDevices = []
+        for device in devicesParsed:
+            listOfDevices.append(Device(device))
+        return listOfDevices
+
 
 class User:
-    
     def __init__(self, username, password):
         self.username = username
         self.password = password
@@ -32,57 +36,74 @@ class User:
         return self.password
 
     
+class Device:
+    def __init__(self, deviceDetails):
+        self.details = deviceDetails
 
-def getDataFromDatabase(database):
-    table = database["table"]
-    usernames = database["users"]
-    passwords = database["passwords"]
+    def connect(self):
+        connect = routeros_api.RouterOsApiPool(self.details["ip"], username=self.details["user"],password=self.details["password"],port=self.details["port"], plaintext_login=True) #connect to mikrotik
+        resource = connect.get_api().get_resource('/ip/hotspot/user')#users from mikrotik
+        return resource
 
-    #try to connect
-    try:
-        #connection to mysql
-        cnx = mysql.connector.connect( 
-            host=database["host"],
-            user=database["username"],
-            password=database["password"],
-            database=database["dbName"]
-            )
-        print('Connected to Database')
-         # catch errors when connection is starting
-    except mysql.connector.Error as err: 
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("Something is wrong with your user name or password to Database")
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("Database does not exist")
-        else:
+    def getData(self):
+        userListMikrotik = []
+        try:
+            users = self.connect().get()
+            print(users)
+            for user in users:
+                userListMikrotik.append(user["name"])
+            return userListMikrotik
+        except routeros_api.exceptions.RouterOsApiConnectionError as err:
             print(err)
-            
 
-    cursor = cnx.cursor()
+class Database:
+    def __init__(self, databaseDetails):
+        self.details = databaseDetails
+    def getData(self):
+        table = self.details["table"]
+        usernames = self.details["users"]
+        passwords = self.details["passwords"]
 
-    #sql query
-    query = ("SELECT {}, {} FROM {}").format(usernames, passwords ,table)
+        #try to connect
+        try:
+            #connection to mysql
+            cnx = mysql.connector.connect( 
+                host=self.details["host"],
+                user=self.details["username"],
+                password=self.details["password"],
+                database=self.details["dbName"]
+                )
+            print('Connected to Database')
+            # catch errors when connection is starting
+        except mysql.connector.Error as err: 
+            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                print("Something is wrong with your user name or password to Database")
+            elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                print("Database does not exist")
+            else:
+                print(err)
+                
 
-    #executing query
-    cursor.execute(query)
-    print('Database query executed successfully')
+        cursor = cnx.cursor()
 
-    #parsing data to list
-    users = []
-    for (username, password) in cursor:
-        users.append(User(username, password))
-    print('Data from database succesfully added to list')
+        #sql query
+        query = ("SELECT {}, {} FROM {}").format(usernames, passwords ,table)
 
-    return users
+        #executing query
+        cursor.execute(query)
+        print('Database query executed successfully')
 
-    
+        #parsing data to list
+        users = []
+        for (username, password) in cursor:
+            users.append(User(username, password))
+        print('Data from database succesfully added to list')
 
-def connectMikrotik(device):
-    connect = routeros_api.RouterOsApiPool(device["ip"], username=device["user"],password=device["password"],port=device["port"], plaintext_login=True) #connect to mikrotik
-    resource = connect.get_api().get_resource('/ip/hotspot/user')#users from mikrotik
-    return resource
+        return users
+
 
 if __name__ == "__main__":
     config = Config()
     database = config.getDatabase()
     devices = config.getDevices()
+    database.getData()
