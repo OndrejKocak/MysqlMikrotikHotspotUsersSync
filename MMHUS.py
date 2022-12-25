@@ -40,7 +40,7 @@ class Device:
     def __init__(self, deviceDetails):
         self.details = deviceDetails
         self.resource = self.connect()
-        
+
     #connect to device
     def connect(self):
         try:
@@ -85,13 +85,14 @@ class Device:
         users = self.getData()
         for user in users:
             if(user not in database.users):
-                print(user)
                 self.resource.remove(id=user.id)
 
     #run device check
     def checkDevice(self, database):
+        print("Checking device:", self.details["name"])
         self.checkNotAdded(database)
         self.checkRemoved(database)
+        print("Successfully checked:", self.details["name"])
 
 
 
