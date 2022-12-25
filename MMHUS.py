@@ -12,10 +12,10 @@ class Config:
     def __init__(self):
         with open(self.file_path, "r") as f:
             self.parser = yaml.safe_load(f)
-
+    #load database info from config
     def getDatabase(self):
         return Database(self.parser['mysql'])
-
+    #load devices information from config
     def getDevices(self):
         devicesParsed = self.parser['devices']
         listOfDevices = []
@@ -25,40 +25,81 @@ class Config:
 
 
 class User:
-    def __init__(self, username, password):
+    def __init__(self, username, password, id=None):
         self.username = username
         self.password = password
-    #username getter
-    def getUsername(self):
-        return self.username
-    #password getter
-    def getPassword(self):
-        return self.password
+        self.id = id
+    # == overloading
+    def __eq__(self, other):
+        if(self.username == other.username):
+            return True
+        return False
 
     
 class Device:
     def __init__(self, deviceDetails):
         self.details = deviceDetails
-
+        self.resource = self.connect()
+        
+    #connect to device
     def connect(self):
-        connect = routeros_api.RouterOsApiPool(self.details["ip"], username=self.details["user"],password=self.details["password"],port=self.details["port"], plaintext_login=True) #connect to mikrotik
-        resource = connect.get_api().get_resource('/ip/hotspot/user')#users from mikrotik
-        return resource
-
-    def getData(self):
-        userListMikrotik = []
         try:
-            users = self.connect().get()
-            print(users)
-            for user in users:
-                userListMikrotik.append(user["name"])
-            return userListMikrotik
+            self.connection = routeros_api.RouterOsApiPool(self.details["ip"], username=self.details["user"],password=self.details["password"],port=self.details["port"], plaintext_login=self.details["plainTextLogin"]) #connect to mikrotik
+            resource = self.connection.get_api().get_resource('/ip/hotspot/user')#users from mikrotik
         except routeros_api.exceptions.RouterOsApiConnectionError as err:
             print(err)
+        return resource
+
+    #disconnect from device    
+    def __del__(self):
+        self.connection.disconnect()
+
+    #get  users from device
+    def getData(self):
+        userListMikrotik = []
+        users = self.resource.get()
+        for user in users:
+            if user['id'] != "*0":
+                userListMikrotik.append(User(user["name"], user["password"], user['id']))  
+        return userListMikrotik
+
+    #check if password was changed
+    def __checkPasswordChange(self, dbUser, mtUser):
+        if(dbUser.password != mtUser.password):
+            self.resource.set(id=mtUser.id, password=dbUser.password)
+
+    #checks not added users
+    def checkNotAdded(self, database):
+        users = self.getData()
+        for dbUser in database.users:
+            added = False
+            for mtUser in users:
+                if(dbUser == mtUser):
+                    added = True
+                    self.__checkPasswordChange(dbUser, mtUser)       
+            if(added == False):
+                self.resource.add(name=dbUser.username, password=dbUser.password)
+
+    #checks for removed users
+    def checkRemoved(self, database):
+        users = self.getData()
+        for user in users:
+            if(user not in database.users):
+                print(user)
+                self.resource.remove(id=user.id)
+
+    #run device check
+    def checkDevice(self, database):
+        self.checkNotAdded(database)
+        self.checkRemoved(database)
+
+
+
 
 class Database:
     def __init__(self, databaseDetails):
         self.details = databaseDetails
+        self.users = self.getData()
     def getData(self):
         table = self.details["table"]
         usernames = self.details["users"]
@@ -106,4 +147,5 @@ if __name__ == "__main__":
     config = Config()
     database = config.getDatabase()
     devices = config.getDevices()
-    database.getData()
+    for device in devices:
+        device.checkDevice(database)

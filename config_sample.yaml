@@ -7,11 +7,14 @@ devices: #add your devices here
     port: 8999
     user: prometheus
     password: changeme
+    plainTextLogin: True #Enable if firmware version newer than >6.43 
+  
   - name: my_second_router
     ip: 10.10.0.2
     port: 8999
     user: prometheus2
     password: password_to_second_router
+    plainTextLogin: True #Enable if firmware version newer than >6.43 
 
 mysql:
   username: username
